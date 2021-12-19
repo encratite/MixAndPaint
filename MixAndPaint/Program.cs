@@ -1,4 +1,7 @@
-﻿using System;
+﻿using MathNet.Numerics.LinearAlgebra;
+using MathNet.Numerics.LinearAlgebra.Double;
+using System;
+using System.Linq;
 
 namespace MixAndPaint
 {
@@ -35,12 +38,14 @@ namespace MixAndPaint
 				new Paint("Cold Gray", 122, 124, 133),
 				new Paint("Mars Black", 8, 6, 15),
 			};
-			var target = new Color(241, 226, 193);
-			MixColor(target, paints);
+			var target = new DenseVector(new double[] { 241, 226, 193 });
+			var bestMix = GetBestMix(target, paints);
+			Console.WriteLine($"Best mix: {bestMix}");
 		}
 
-		private static void MixColor(Color target, Paint[] paints)
+		private static Mix GetBestMix(Vector<double> target, Paint[] paints)
 		{
+			Mix bestMix = null;
 			for (int i = 0; i < paints.Length; i++)
 			{
 				for (int j = 0; j < paints.Length; j++)
@@ -49,16 +54,52 @@ namespace MixAndPaint
 					{
 						if (i < j && j < k)
 						{
-							double distance = GetDistance(target, paints[i], paints[j], paints[k]);
+							var mix = GetMix(target, new Paint[] { paints[i], paints[j], paints[k] });
+							if (bestMix == null || mix.Distance < bestMix.Distance)
+							{
+								bestMix = mix;
+								// Console.WriteLine($"New best mix: {bestMix}");
+							}
 						}
 					}
 				}
 			}
+			return bestMix;
 		}
 
-		private static double GetDistance(Color target, Paint paint1, Paint paint2, Paint paint3)
+		private static Mix GetMix(Vector<double> target, Paint[] paints)
 		{
+			var p1 = paints[0].Color;
+			var p2 = paints[1].Color;
+			var p3 = paints[2].Color;
+			var v = p2 - p1;
+			var w = p3 - p1;
+			var n = CrossProduct(v, w);
+			var A = CreateMatrix.DenseOfColumnVectors(v, w, -n);
+			var b = target - p1;
+			var x = A.Solve(b);
+			var intersection = p1 + x[0] * v + x[1] * w;
+			double targetDistance = (target - intersection).L2Norm();
+			var weights = paints.Select(paint => 1 / (paint.Color - intersection).L2Norm()).ToArray();
+			double weightSum = weights.Sum();
+			var paintRatios = new PaintRatio[paints.Length];
+			for (int i = 0; i < paints.Length; i++)
+			{
+				var paint = paints[i];
+				double ratio = weights[i] / weightSum;
+				paintRatios[i] = new PaintRatio(paint, ratio);
+			}
+			var mix = new Mix(paintRatios, targetDistance);
+			return mix;
+		}
 
+		private static Vector<double> CrossProduct(Vector<double> left, Vector<double> right)
+		{
+			Vector result = new DenseVector(3);
+			result[0] = left[1] * right[2] - left[2] * right[1];
+			result[1] = -left[0] * right[2] + left[2] * right[0];
+			result[2] = left[0] * right[1] - left[1] * right[0];
+			return result;
 		}
 	}
 }
