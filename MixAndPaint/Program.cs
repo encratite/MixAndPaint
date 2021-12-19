@@ -39,6 +39,7 @@ namespace MixAndPaint
 				new Paint("Mars Black", 8, 6, 15),
 			};
 			var target = new DenseVector(new double[] { 241, 226, 193 });
+			Console.WriteLine($"Approximating color: {target[0]}, {target[1]}, {target[2]}");
 			var bestMix = GetBestMix(target, paints);
 			Console.WriteLine($"Best mix: {bestMix}");
 		}
@@ -58,7 +59,7 @@ namespace MixAndPaint
 							if (bestMix == null || mix.Distance < bestMix.Distance)
 							{
 								bestMix = mix;
-								// Console.WriteLine($"New best mix: {bestMix}");
+								Console.WriteLine($"New best mix: {bestMix}");
 							}
 						}
 					}
@@ -79,17 +80,19 @@ namespace MixAndPaint
 			var b = target - p1;
 			var x = A.Solve(b);
 			var intersection = p1 + x[0] * v + x[1] * w;
-			double targetDistance = (target - intersection).L2Norm();
 			var weights = paints.Select(paint => 1 / (paint.Color - intersection).L2Norm()).ToArray();
 			double weightSum = weights.Sum();
 			var paintRatios = new PaintRatio[paints.Length];
+			Vector<double> weightedColor = new DenseVector(new double[] { 0, 0, 0 });
 			for (int i = 0; i < paints.Length; i++)
 			{
 				var paint = paints[i];
 				double ratio = weights[i] / weightSum;
 				paintRatios[i] = new PaintRatio(paint, ratio);
+				weightedColor += ratio * paint.Color;
 			}
-			var mix = new Mix(paintRatios, targetDistance);
+			double distance = (target - weightedColor).L2Norm();
+			var mix = new Mix(paintRatios, distance);
 			return mix;
 		}
 
