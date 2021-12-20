@@ -56,9 +56,9 @@ namespace MixAndPaint
 			var target = new DenseVector(new double[] { red, green, blue });
 			Console.WriteLine($"Approximating color: {target[0]}, {target[1]}, {target[2]}");
 			var bestMix = GetBestMixLinePlaneIntersection(target, paints);
-			Console.WriteLine($"Best mix with line-plane intersection algorithm: {bestMix}");
+			Console.WriteLine($"Best mix with line-plane intersection: {bestMix}");
 			bestMix = GetBestMixFunctionGradient(target, paints);
-			Console.WriteLine($"Best mix with Broyden–Fletcher–Goldfarb–Shanno algorithm: {bestMix}");
+			Console.WriteLine($"Best mix with Broyden–Fletcher–Goldfarb–Shanno: {bestMix}");
 		}
 
 		private static void IterateOverPaints(Vector<double> target, Paint[] paints, int depth, Action<Vector<double>, Paint[]> handler)
@@ -150,36 +150,27 @@ namespace MixAndPaint
 			const int paintCount = 3;
 			IterateOverPaints(target, paints, paintCount, (target, mixPaints) =>
 			{
-				double distance(Vector<double> weights)
+				double getDistance(Vector<double> weights)
 				{
-					return GetDistance(target, paints, weights.ToArray(), out PaintRatio[] paintRatios);
+					return GetDistance(target, mixPaints, weights.ToArray(), out PaintRatio[] paintRatios);
 				}
-				Vector<double> distanceGradient(Vector<double> weights)
+				Vector<double> getDistanceGradient(Vector<double> weights)
 				{
-					double getDelta(int dimension)
-					{
-						double delta = target[dimension];
-						for (int i = 0; i < weights.Count; i++)
-							delta -= weights[i] * paints[i].Color[dimension];
-						return delta;
-					}
-					double getGradient(int index)
-					{
-						double gradientNumerator = 0.0;
-						double deltaSquareSum = 0.0;
-						for (int dimension = 0; dimension < target.Count; dimension++)
-						{
-							double delta = getDelta(dimension);
-							gradientNumerator -= paints[index].Color[dimension] * delta;
-							deltaSquareSum += Math.Pow(delta, 2);
-						}
-						double gradientDenominator = Math.Sqrt(deltaSquareSum);
-						double gradient = gradientNumerator / gradientDenominator;
-						return gradient;
-					}
+					const double epsilon = 1e-5;
 					double[] gradient = new double[weights.Count];
 					for (int i = 0; i < weights.Count; i++)
-						gradient[i] = getGradient(i);
+					{
+						double x = weights[i];
+						double x1 = x + epsilon;
+						double x2 = x - epsilon;
+						double[] epsilonWeights1 = weights.ToArray();
+						double[] epsilonWeights2 = weights.ToArray();
+						epsilonWeights1[i] = x1;
+						epsilonWeights2[i] = x2;
+						double y1 = GetDistance(target, mixPaints, epsilonWeights1, out PaintRatio[] paintRatios1);
+						double y2 = GetDistance(target, mixPaints, epsilonWeights2, out PaintRatio[] paintRatios2);
+						gradient[i] = (y2 - y1) / (x2 - x1);
+					}
 					return new DenseVector(gradient);
 				}
 				Vector<double> initializeVector(double limit)
@@ -196,10 +187,10 @@ namespace MixAndPaint
 				const double parameterTolerance = 0.05;
 				const double functionProgressTolerance = 0.05;
 				const int maxIterations = 1000;
-				var ratios = FindMinimum.OfFunctionGradientConstrained
+				var weights = FindMinimum.OfFunctionGradientConstrained
 				(
-					distance,
-					distanceGradient,
+					getDistance,
+					getDistanceGradient,
 					lowerBound,
 					upperBound,
 					initialGuess,
@@ -208,13 +199,17 @@ namespace MixAndPaint
 					functionProgressTolerance,
 					maxIterations
 				);
-				/*
+				double weightSum = weights.ToArray().Sum();
+				double[] ratios = new double[weights.Count];
+				for (int i = 0; i < ratios.Length; i++)
+					ratios[i] = weights[i] / weightSum;
+				double asdf = GetDistance(target, mixPaints, ratios, out PaintRatio[] paintRatios);
+				var mix = new Mix(paintRatios, asdf);
 				if (bestMix == null || mix.Distance < bestMix.Distance)
 				{
 					bestMix = mix;
 					Console.WriteLine($"New best mix: {bestMix}");
 				}
-				*/
 			});
 			return bestMix;
 		}
