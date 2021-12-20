@@ -18,5 +18,10 @@ namespace MixAndPaint
 		{
 			return Name;
 		}
+
+		public override int GetHashCode()
+		{
+			return Name.GetHashCode();
+		}
 	}
 }

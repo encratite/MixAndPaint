@@ -1,14 +1,24 @@
 ﻿using MathNet.Numerics.LinearAlgebra;
 using MathNet.Numerics.LinearAlgebra.Double;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace MixAndPaint
 {
 	class Program
 	{
-		static void Main(string[] args)
+		static void Main(string[] arguments)
 		{
+			if (arguments.Length != 3)
+			{
+				var assembly = Assembly.GetExecutingAssembly();
+				var name = assembly.GetName();
+				Console.WriteLine("Usage:");
+				Console.WriteLine($"{name.Name} <red> <green> <blue>");
+				return;
+			}
 			var paints = new Paint[]
 			{
 				new Paint("Titanium White", 248, 245, 253),
@@ -38,37 +48,57 @@ namespace MixAndPaint
 				new Paint("Cold Gray", 122, 124, 133),
 				new Paint("Mars Black", 8, 6, 15),
 			};
-			var target = new DenseVector(new double[] { 241, 226, 193 });
+			Func<int, int> getArgumentInt = i => int.Parse(arguments[i]);
+			int red = getArgumentInt(0);
+			int green = getArgumentInt(1);
+			int blue = getArgumentInt(2);
+			var target = new DenseVector(new double[] { red, green, blue });
 			Console.WriteLine($"Approximating color: {target[0]}, {target[1]}, {target[2]}");
-			var bestMix = GetBestMix(target, paints);
-			Console.WriteLine($"Best mix: {bestMix}");
+			var bestMix = GetBestMixLinePlaneIntersection(target, paints);
+			Console.WriteLine($"Best mix with line-plane intersection algorithm: {bestMix}");
 		}
 
-		private static Mix GetBestMix(Vector<double> target, Paint[] paints)
+		private static void IterateOverPaints(Vector<double> target, Paint[] paints, int depth, Action<Vector<double>, Paint[]> handler)
+		{
+			var remainingPaints = new HashSet<Paint>(paints);
+			var currentPaints = new List<Paint>();
+			IterateOverPaints(target, remainingPaints, depth, currentPaints, handler);
+		}
+
+		private static void IterateOverPaints(Vector<double> target, HashSet<Paint> remainingPaints, int remainingDepth, List<Paint> currentPaints, Action<Vector<double>, Paint[]> handler)
+		{
+			if (remainingDepth == 0 || remainingPaints.Count == 0)
+			{
+				handler(target, currentPaints.ToArray());
+				return;
+			}
+			int newRemainingDepth = remainingDepth - 1;
+			foreach (var paint in remainingPaints)
+			{
+				var newRemainingPaints = new HashSet<Paint>(remainingPaints);
+				newRemainingPaints.Remove(paint);
+				var newCurrentPaints = new List<Paint>(currentPaints);
+				newCurrentPaints.Add(paint);
+				IterateOverPaints(target, newRemainingPaints, newRemainingDepth, newCurrentPaints, handler);
+			}
+		}
+
+		private static Mix GetBestMixLinePlaneIntersection(Vector<double> target, Paint[] paints)
 		{
 			Mix bestMix = null;
-			for (int i = 0; i < paints.Length; i++)
+			IterateOverPaints(target, paints, 3, (target, mixPaints) =>
 			{
-				for (int j = 0; j < paints.Length; j++)
+				var mix = GetMixLinePlaneIntersection(target, mixPaints);
+				if (bestMix == null || mix.Distance < bestMix.Distance)
 				{
-					for (int k = 0; k < paints.Length; k++)
-					{
-						if (i < j && j < k)
-						{
-							var mix = GetMix(target, new Paint[] { paints[i], paints[j], paints[k] });
-							if (bestMix == null || mix.Distance < bestMix.Distance)
-							{
-								bestMix = mix;
-								Console.WriteLine($"New best mix: {bestMix}");
-							}
-						}
-					}
+					bestMix = mix;
+					Console.WriteLine($"New best mix: {bestMix}");
 				}
-			}
+			});
 			return bestMix;
 		}
 
-		private static Mix GetMix(Vector<double> target, Paint[] paints)
+		private static Mix GetMixLinePlaneIntersection(Vector<double> target, Paint[] paints)
 		{
 			var p1 = paints[0].Color;
 			var p2 = paints[1].Color;
