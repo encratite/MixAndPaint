@@ -31,10 +31,14 @@ namespace MixAndPaint
 			var target = new DenseVector(new double[] { red, green, blue });
 			Console.WriteLine($"Approximating color: {target[0]}, {target[1]}, {target[2]}");
 			var paints = Paints.Definitions;
+			/*
 			var bestMix1 = PlaneLineIntersection.GetBestMix(target, paints);
 			Console.WriteLine($"Best mix with line-plane intersection: {bestMix1}");
-			var bestMix2 = FunctionGradient.GetBestMix(target, paints);
-			Console.WriteLine($"Best mix with Broyden–Fletcher–Goldfarb–Shanno: {bestMix2}");
+			*/
+			var bestMix2 = FunctionGradient.GetBestMix(target, paints, 2);
+			Console.WriteLine($"Best mix with Broyden–Fletcher–Goldfarb–Shanno (2 colors): {bestMix2}");
+			var bestMix3 = FunctionGradient.GetBestMix(target, paints, 3);
+			Console.WriteLine($"Best mix with Broyden–Fletcher–Goldfarb–Shanno (3 colors): {bestMix3}");
 		}
 	}
 }

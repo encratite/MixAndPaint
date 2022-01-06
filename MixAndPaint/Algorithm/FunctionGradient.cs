@@ -8,10 +8,9 @@ namespace MixAndPaint.Algorithm
 {
 	class FunctionGradient
 	{
-		public static Mix GetBestMix(Vector<double> target, Paint[] paints)
+		public static Mix GetBestMix(Vector<double> target, Paint[] paints, int paintCount)
 		{
 			Mix bestMix = null;
-			const int paintCount = 3;
 			Common.IterateOverPaints(target, paints, paintCount, (target, mixPaints) =>
 			{
 				double getDistance(Vector<double> weights)
@@ -75,7 +74,7 @@ namespace MixAndPaint.Algorithm
 				if (bestMix == null || mix.Distance < bestMix.Distance)
 				{
 					bestMix = mix;
-					Console.WriteLine($"New best mix: {bestMix}");
+					// Console.WriteLine($"New best mix: {bestMix}");
 				}
 			});
 			return bestMix;
